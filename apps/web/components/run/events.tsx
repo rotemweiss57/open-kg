@@ -7,6 +7,7 @@ import {
 import type { RunEvent } from "@/lib/api";
 import { RUN_STATUS } from "@/lib/colors";
 import { firstLine, fmtClock, fmtValid, humanize } from "@/lib/format";
+import { Favicon } from "../favicon";
 import { SuggestionTitle } from "../suggestion-actions";
 import { Badge, cn } from "../ui";
 
@@ -71,14 +72,14 @@ export function describeEvent(ev: RunEvent): View {
       return { icon: <Search className={i} />, title: <><span className="text-fg-3">Searched</span> {p.query}</>, body: (
         <ul className="space-y-0.5">
           {(p.results ?? []).slice(0, 6).map((r: { title: string; domain: string; published_at?: string }, n: number) => (
-            <li key={n} className="flex items-baseline gap-2"><span className="truncate text-fg-3">{r.title}</span><span className="shrink-0 text-[11px] text-fg-3 opacity-70">{r.domain}{r.published_at ? ` · ${fmtValid(r.published_at)}` : ""}</span></li>
+            <li key={n} className="flex items-center gap-2"><Favicon domain={r.domain} size={13} /><span className="truncate text-fg-3">{r.title}</span><span className="shrink-0 text-[11px] text-fg-3 opacity-70">{r.domain}{r.published_at ? ` · ${fmtValid(r.published_at)}` : ""}</span></li>
           ))}
           {(p.results ?? []).length === 0 && <li className="text-fg-3">No results.</li>}
         </ul>) };
     case "source.read":
       return { icon: <BookOpenText className={i} />, title: <><span className="text-fg-3">Read</span> {p.sources?.length ?? 0} source{p.sources?.length === 1 ? "" : "s"}</>, body: (
         <div className="flex flex-wrap gap-1">{(p.sources ?? []).map((s: { id: string; title: string; domain: string }) => (
-          <span key={s.id} className="max-w-full truncate rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] text-fg-2" title={s.title}>{s.domain}</span>))}</div>) };
+          <span key={s.id} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-md bg-panel-2 px-1.5 py-0.5 text-[11px] text-fg-2" title={s.title}><Favicon domain={s.domain} size={12} />{s.domain}</span>))}</div>) };
     case "site.map": case "site.crawl":
       return { icon: <FileSearch className={i} />, title: `${ev.type === "site.map" ? "Mapped" : "Crawled"} ${p.root}`, body: `${p.pages} page${p.pages === 1 ? "" : "s"}` };
     case "candidate.entity":

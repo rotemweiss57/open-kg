@@ -169,4 +169,72 @@ def test_live_observer_skips_the_model_when_nothing_is_new(workspace, monkeypatc
     with session_scope() as s:
         assert s.get(MonitorRun, run_id).outcome == "no_change"
         assert [u.operation for u in s.scalars(select(ProviderUsage).where(ProviderUsage.graph_id == gid))] == ["monitor.search"]
-    assert len(calls) == 1 and calls[0]["body"]["time_range"] == "day" and router.llm.calls == []
+    # the first check looks back a month and names the entity exactly; no model call when nothing is new
+    assert len(calls) == 1 and calls[0]["body"]["time_range"] == "month" and router.llm.calls == []
+    assert calls[0]["body"]["query"] == '"Acme Robotics" funding stage'
+    run_monitor_check(mid, LiveObserver(tavily=fake_tavily(calls), router=router))
+    assert calls[1]["body"]["time_range"] == "day"  # later checks only need what is new
+
+
+def test_watched_attribute_matches_however_the_model_names_it(workspace):
+    """Regression from a live check: the model answered with predicate "has_title", which did not
+    match the watched "title", so a real change was dropped without a trace."""
+    gid = seeded(workspace)
+    mid = monitor_for(gid, "Priya Raman")
+    page = {"url": "https://news.example.com/priya", "title": "News",
+            "content": "Priya Raman was named Chief Product Officer of Northwind Robotics in November 2026."}
+    claim = CandidateClaim(predicate="has_title", value="Chief Product Officer", valid_from="2026-11",
+                           evidence=[{"url": page["url"], "excerpt": "Priya Raman was named Chief Product Officer of Northwind Robotics"}])
+    before = n(ChangeEvent, gid)
+    run_monitor_check(mid, StubObserver(Observation(sources=[page], claims=[claim])))
+    assert n(ChangeEvent, gid) == before + 1
+    with session_scope() as s:
+        ch = s.scalar(select(ChangeEvent).where(ChangeEvent.graph_id == gid).order_by(ChangeEvent.created_at.desc()))
+        assert ch.kind == "changed" and ch.predicate == "title" and "Chief Product Officer" in ch.summary
+
+
+def test_structured_output_accepts_json_text_and_never_hides_a_parsing_failure():
+    """Regression from a live check: the provider returned the JSON as text after a reasoning block;
+    the parser gave up and the monitor reported "no change"."""
+    import pytest
+    from langchain_core.messages import AIMessage
+    from pydantic import BaseModel
+
+    from openkg.agent.models import structured
+
+    class Shape(BaseModel):
+        items: list[str] = []
+
+    class Fake:
+        def __init__(self, content):
+            self.content = content
+
+        def with_structured_output(self, schema, include_raw=False):
+            return self
+
+        def invoke(self, prompt):
+            return {"raw": AIMessage(content=self.content), "parsed": None, "parsing_error": "no parsed field"}
+
+    blocks = [{"type": "reasoning", "summary": []}, {"type": "text", "text": '```json\n{"items": ["a", "b"]}\n```'}]
+    parsed, _ = structured(Fake(blocks), Shape, "x")
+    assert parsed.items == ["a", "b"]
+    assert structured(Fake('Here you go: {"items": []} done'), Shape, "x")[0].items == []
+    with pytest.raises(ValueError, match="did not return structured output"):
+        structured(Fake("I could not find anything."), Shape, "x")
+    with pytest.raises(ValueError, match="does not match"):
+        structured(Fake('{"items": "not-a-list"}'), Shape, "x")
+
+
+def test_an_undated_remark_does_not_alert_against_a_dated_fact(workspace):
+    """Regression from a live check: a tweet saying someone was "running YC" raised a change alert
+    against a title dated years later."""
+    gid = seeded(workspace)
+    mid = monitor_for(gid, "Priya Raman")
+    page = {"url": "https://social.example.com/post", "title": "Post", "content": "Back when Priya Raman was running product at Brightloom, things were different."}
+    remark = CandidateClaim(predicate="title", value="running product at Brightloom",
+                            evidence=[{"url": page["url"], "excerpt": "Priya Raman was running product at Brightloom"}])
+    before = n(ChangeEvent, gid), n(Notification, gid)
+    run_monitor_check(mid, StubObserver(Observation(sources=[page], claims=[remark])))
+    assert (n(ChangeEvent, gid), n(Notification, gid)) == before
+    with session_scope() as s:  # still visible to a reviewer as a conflict
+        assert s.scalar(select(Suggestion.id).where(Suggestion.graph_id == gid, Suggestion.kind == "contradiction", Suggestion.title.like("%Priya Raman%")))

@@ -1,10 +1,11 @@
 "use client";
 
-import { BadgeCheck, ChevronDown, CircleHelp, ExternalLink, FileText } from "lucide-react";
+import { BadgeCheck, ChevronDown, CircleHelp, ExternalLink } from "lucide-react";
 import { Popover } from "radix-ui";
 import { useState } from "react";
 import type { Claim, Evidence } from "@/lib/api";
 import { fmtDate, fmtValid, fmtValue, humanize, timeAgo, validRange } from "@/lib/format";
+import { Favicon } from "./favicon";
 import { cn, Confidence, StatusBadge, Tip } from "./ui";
 
 /** Only http(s) links are ever rendered as anchors; anything else (fixture://, javascript:) is inert. */
@@ -16,7 +17,7 @@ export function SourceCard({ ev, compact }: { ev: Evidence; compact?: boolean })
   const body = (
     <>
       <div className="flex items-start gap-2">
-        <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-3" />
+        <Favicon domain={s.domain} size={16} className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-medium text-fg group-hover:text-accent-text">{s.title || s.domain}</p>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-fg-3" title={`Read ${timeAgo(s.fetched_at)}`}>

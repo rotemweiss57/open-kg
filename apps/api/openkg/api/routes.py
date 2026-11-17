@@ -212,6 +212,25 @@ def propose_charter(body: S.CharterProposalIn, use_model: bool = False, auth: Au
     return charter_mod.heuristic(body.prompt)
 
 
+@router.get("/favicon/{domain}", tags=["system"])
+def favicon(domain: str, auth: Auth = Depends(get_auth), s: Session = Depends(get_db)):
+    """A source site's icon, fetched and cached server-side so the browser never asks a third party.
+    Only domains that already appear as sources in the caller's workspace are served."""
+    from .. import favicons
+    from ..models import Source
+    domain = domain.lower().strip(".")
+    known = favicons.valid_domain(domain) and s.scalar(
+        select(Source.id).join(Graph, Graph.id == Source.graph_id)
+        .where(Graph.workspace_id == auth.workspace_id, Source.domain == domain, Source.is_synthetic.is_(False)).limit(1))
+    s.commit()  # no transaction is held across the fetch
+    hit = favicons.get(domain) if known else None
+    if hit is None:
+        raise HTTPException(404, "No icon")
+    return Response(hit[0], media_type=hit[1], headers={
+        "Cache-Control": "private, max-age=604800", "Content-Security-Policy": "default-src 'none'",
+        "X-Content-Type-Options": "nosniff"})
+
+
 # --- graphs -------------------------------------------------------------------------------------
 
 

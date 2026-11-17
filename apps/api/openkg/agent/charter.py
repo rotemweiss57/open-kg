@@ -146,8 +146,9 @@ def with_model(prompt: str) -> S.CharterProposal:
     from .models import ModelRouter
     router = ModelRouter()
     spec = router.spec("planner")
-    model = router.model("planner", max_tokens=4000).with_structured_output(_Draft)
-    draft = model.invoke(
+    from .models import structured
+    draft, _ = structured(
+        router.model("planner"), _Draft,
         "Draft a research charter and a small ontology (3-5 entity types, 4-7 relationship types, UPPER_SNAKE "
         "relationship names, snake_case attribute names) for an evidence-backed knowledge graph. Be explicit about "
         "ambiguities and never promise complete coverage. Colors must be one of: sky, amber, violet, lime, rose.\n\n"

@@ -307,3 +307,39 @@ def test_markdown_export_and_include_proposed(app):
     assert len(both.text) > len(md.text)
     rows = c.get(f"/api/v1/graphs/{gid}/export", params={"format": "csv", "include_proposed": True}).text
     assert ",proposed," in rows
+
+
+def test_favicons_are_served_only_for_known_public_sources(app, monkeypatch, tmp_path):
+    import httpx
+
+    from openkg import favicons
+    from openkg.domain.recorder import register_source
+    monkeypatch.setattr(favicons, "CACHE", tmp_path)
+    png = b"\x89PNG\r\n\x1a\n" + b"0" * 64
+    seen = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        if request.url.host == "redirect.example.com":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data"})
+        if request.url.host == "svg.example.com":
+            return httpx.Response(200, content=b"<svg onload='alert(1)'></svg>")
+        return httpx.Response(200, content=png)
+    transport = httpx.MockTransport(handler)
+    assert favicons.get("news.example.com", transport) == (png, "image/png")
+    assert favicons.get("news.example.com", transport) == (png, "image/png") and len(seen) == 1  # cached
+    assert favicons.get("redirect.example.com", transport) is None   # a redirect to a private address is refused
+    assert favicons.get("svg.example.com", transport) is None        # SVG can carry script: never served
+    assert favicons.get("localhost", transport) is None and favicons.get("../etc/passwd", transport) is None
+    assert not any("169.254" in u for u in seen)
+
+    c = signup(app, "icons@example.com")
+    gid = c.post("/api/v1/graphs", json={"name": "Live"}).json()["id"]
+    with session_scope() as s:
+        register_source(s, gid, url="https://news.example.com/a", title="A", content="text")
+    monkeypatch.setattr(favicons, "get", lambda d, transport=None: (png, "image/png") if d == "news.example.com" else None)
+    ok = c.get("/api/v1/favicon/news.example.com")
+    assert ok.status_code == 200 and ok.headers["content-type"] == "image/png" and "default-src 'none'" in ok.headers["content-security-policy"]
+    assert c.get("/api/v1/favicon/never-researched.example.org").status_code == 404   # not a source in this workspace
+    assert signup(app, "other@example.com").get("/api/v1/favicon/news.example.com").status_code == 404  # nor in another one
+    assert TestClient(app).get("/api/v1/favicon/news.example.com").status_code == 401

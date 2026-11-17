@@ -154,6 +154,11 @@ def canonical_predicate(predicate: str, ontology_attributes: set[str] | frozense
     """The ontology's own name for an attribute when it has one, else the family's first name."""
     if predicate in ontology_attributes:
         return predicate
+    stripped = re.sub(r"^(?:has|is|its|their)_", "", predicate)  # has_title -> title
+    if stripped != predicate and (stripped in ontology_attributes or stripped in _FAMILY_OF):
+        predicate = stripped
+        if predicate in ontology_attributes:
+            return predicate
     counted = _COUNT_OF.match(predicate)  # number_of_charge_points -> charge_points_count
     if counted:
         predicate = f"{counted.group(1)}_count"

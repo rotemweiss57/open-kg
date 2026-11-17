@@ -48,7 +48,7 @@ function LoginForm() {
 
           {pub.data?.demo_mode && (
             <>
-              <Button variant="primary" size="lg" className="mt-6 w-full" loading={busy === "demo"} onClick={() => submit("demo")} title="Synthetic graphs and simulated runs. No keys needed.">
+              <Button variant="primary" size="lg" className="mt-6 w-full" loading={busy === "demo"} onClick={() => submit("demo")}>
                 <FlaskConical className="h-4 w-4" /> Enter demo <ArrowRight className="h-4 w-4" />
               </Button>
               <div className="mt-6 flex items-center gap-3 text-[11.5px] text-fg-3"><span className="h-px flex-1 bg-line" />or<span className="h-px flex-1 bg-line" /></div>

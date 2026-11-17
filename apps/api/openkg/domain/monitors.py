@@ -15,7 +15,7 @@ from sqlalchemy import or_, select, update
 
 from ..db import session_scope, utcnow
 from ..models import ChangeEvent, Entity, Graph, Monitor, MonitorRun, Notification, Source, Suggestion
-from .canonical import canonical_url, norm_text, sha
+from .canonical import canonical_predicate, canonical_url, norm_text, sha
 from .recorder import CandidateClaim, Recorder, register_source
 
 log = logging.getLogger("openkg.monitors")
@@ -134,7 +134,10 @@ def _check(monitor_id: str, observer: Observer | None) -> str | None:
                                 published_at=src.get("published_at"), synthetic=obs.simulated)
             rec = Recorder(s, graph, None)
             watched = set(m.predicates or [])
+            attrs = rec._attributes(entity.type) | frozenset(watched)
             for cand in obs.claims:
+                # "has_title" and "job_title" are the watched "title": match on the canonical name
+                cand = cand.model_copy(update={"predicate": canonical_predicate(cand.predicate, attrs)})
                 if watched and cand.predicate not in watched:
                     continue
                 res = rec.record_claim(entity, cand)
@@ -142,6 +145,10 @@ def _check(monitor_id: str, observer: Observer | None) -> str | None:
                     if etype != "candidate.claim" or payload.get("confidence") == "low":
                         continue  # unverifiable excerpts never raise an alert
                     kind = payload.get("change", "new")
+                    if kind == "contradicted" and not cand.valid_from and (payload.get("before") or {}).get("valid_from"):
+                        # An undated remark cannot show that a dated fact has changed. It stays in the
+                        # review queue as a conflict, but it is not a change and raises no alert.
+                        continue
                     label = cand.predicate.replace("_", " ")
                     before, after = payload.get("before"), payload.get("after") or {"value": cand.value, "valid_from": cand.valid_from}
                     if kind == "changed":

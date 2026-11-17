@@ -265,3 +265,31 @@ class ModelRouter:
             return True, f"{spec} responded ({str(msg.content)[:40]!r})."
         except Exception as e:  # noqa: BLE001
             return False, f"{type(e).__name__}: {str(e)[:300]}"
+
+
+def structured(model: BaseChatModel, schema: type, prompt: str):
+    """Ask for output matching `schema` and return (instance, raw message).
+
+    Providers differ in how they deliver structured output. Some return a parsed object; others
+    return the JSON as plain text, sometimes after a reasoning block or inside a code fence. Both are
+    accepted. A reply that is neither raises, so a caller never mistakes a parsing failure for "the
+    model found nothing".
+    """
+    import json
+    import re
+
+    out = model.with_structured_output(schema, include_raw=True).invoke(prompt)
+    raw = out.get("raw")
+    if out.get("parsed") is not None:
+        return out["parsed"], raw
+    content = getattr(raw, "content", "")
+    if isinstance(content, list):
+        content = "\n".join(part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") in ("text", "output_text"))
+    text = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(content).strip())
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end <= start:
+        raise ValueError(f"The model did not return structured output ({str(out.get('parsing_error'))[:160]})")
+    try:
+        return schema.model_validate(json.loads(text[start:end + 1])), raw
+    except Exception as e:  # noqa: BLE001
+        raise ValueError(f"The model returned output that does not match the expected shape ({type(e).__name__})") from e
