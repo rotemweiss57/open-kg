@@ -8,7 +8,8 @@ import { join } from "node:path";
 
 const base = process.env.BASE_URL ?? "http://localhost:3100";
 const out = process.env.OUT ?? "../../docs/screenshots/demo.gif";
-const size = { width: 1280, height: 800 };
+const size = { width: Number(process.env.W ?? 1280), height: Number(process.env.H ?? 800) };
+const mp4Dir = process.env.MP4_DIR;               // W=1280 H=720 MP4_DIR=… writes 16:9 segments for a video edit
 const dir = mkdtempSync(join(tmpdir(), "openkg-demo-"));
 
 const browser = await chromium.launch();
@@ -62,7 +63,7 @@ await pause(700);
 await click(page.getByRole("button", { name: /Start research|Run/ }).first());
 await pause(800);
 await click(page.getByRole("button", { name: "Start simulation" }));
-await page.mouse.move(640, 760, { steps: 18 });
+await page.mouse.move(size.width / 2, size.height - 40, { steps: 18 });
 await pause(Number(process.env.GROW_MS ?? 14000));
 await click(section("Research"));      // 2. what the agents are doing
 await pause(3500);
@@ -102,6 +103,12 @@ await ctx.close();
 await browser.close();
 
 const video = join(dir, readdirSync(dir).find((f) => f.endsWith(".webm")));
+if (mp4Dir) {
+  keep.forEach(([a, b], i) => execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-ss", a.toFixed(2), "-to", b.toFixed(2), "-i", video,
+    "-an", "-c:v", "libx264", "-crf", "16", "-vf", "scale=1920:-2:flags=lanczos", "-pix_fmt", "yuv420p", "-r", "30", join(mp4Dir, `seg${i + 1}.mp4`)]));
+  console.log(`segments written to ${mp4Dir}`);
+  process.exit(0);
+}
 const parts = keep.map(([a, b], i) => `[0:v]trim=${a.toFixed(2)}:${b.toFixed(2)},setpts=PTS-STARTPTS[v${i}]`).join(";");
 const filter = `${parts};${keep.map((_, i) => `[v${i}]`).join("")}concat=n=${keep.length},setpts=PTS/1.5,fps=8,scale=900:-1:flags=lanczos,` +
   "split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle";
