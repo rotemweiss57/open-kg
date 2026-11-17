@@ -3,20 +3,25 @@
 [![CI](https://github.com/rotemweiss57/open-kg/actions/workflows/ci.yml/badge.svg)](https://github.com/rotemweiss57/open-kg/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**Tell OpenKG what you want to understand. Research agents investigate the open web, build a graph of cited
-facts, and keep watching for changes.**
+**Ask a question. Research agents search the open web, build a graph of cited facts, and keep watching for
+changes.**
 
 OpenKG is an open-source, self-hosted platform for long-running research agents. Every fact in the graph opens
 to the quote and page it came from. Well-evidenced facts are approved automatically; everything else waits for you.
 
-![The graph canvas: solid nodes are verified, dashed ones are suggestions awaiting review](docs/screenshots/canvas-live.png)
+[Use cases](#what-it-is-best-at) · [Get started](#get-started) · [Features](#what-you-can-do) ·
+[Trust rules](#why-you-can-trust-the-graph) · [How it works](#how-it-works)
+
+![A research run: the graph grows as agents work, a node opens to its quoted sources, a conflict waits in review, and the result is a table](docs/screenshots/demo.gif)
+
+<sup>The built-in demo: a simulated run on synthetic data (fictional companies and people).</sup>
 
 ## Who it is for
 
-People whose job is to understand companies and markets from public information, and who have to show where
-each fact came from: strategy and consulting analysts, investment and corporate development teams, and B2B sales
-teams researching named accounts. If that work happens today in a search engine, a spreadsheet and a lot of
-copy-paste, OpenKG is built for it.
+People who have to understand companies and markets from public information and show where each fact came from:
+strategy and consulting analysts, investment and corporate development teams, and B2B sales teams researching
+named accounts. If that work happens today in a search engine, a spreadsheet and a lot of copy-paste, OpenKG is
+built for it.
 
 ## What it is best at
 
@@ -28,9 +33,8 @@ copy-paste, OpenKG is built for it.
 | **Then** | Copy a cited brief into your CRM or call notes | Export the table to a deck or spreadsheet | Watch the entities so changes come to you |
 | **Try it** | [Stripe](http://localhost:3100/new?quick=1&prompt=Account%20map%20of%20Stripe%3A%20executives%2C%20their%20previous%20companies%2C%20recent%20product%20launches%20and%20main%20investors) | [Lab-grown diamonds](http://localhost:3100/new?quick=1&prompt=Map%20the%20lab-grown%20diamond%20market%3A%20producers%2C%20where%20they%20are%20based%2C%20retailers%20they%20supply%20and%20their%20investors) | [AI acquisitions in 2026](http://localhost:3100/new?quick=1&prompt=AI%20company%20acquisitions%20announced%20in%202026%3A%20the%20acquirer%2C%20the%20target%2C%20the%20price%20and%20the%20date) |
 
-The **Try it** links open a running OpenKG with the question filled in and stop at the spending confirmation; one
-more click starts the research. The same three examples are on the app's home screen. A capped run typically costs
-well under a dollar.
+The **Try it** links need OpenKG running locally. Each one fills in the question and stops at the spending
+confirmation; one more click starts the research. The same three examples are on the app's home screen.
 
 ## Get started
 
@@ -56,9 +60,9 @@ make dev          # http://localhost:3100
 | **Tavily**, for web search and reading | [app.tavily.com](https://app.tavily.com) | `TAVILY_API_KEY` |
 | **One model provider**: Valar, Anthropic or OpenAI | [Valar quickstart](https://docs.valarhq.ai/quickstart) · [Anthropic](https://console.anthropic.com/settings/keys) · [OpenAI](https://platform.openai.com/api-keys) | `VALAR_API_KEY`, `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` |
 
-Later: `make setup` changes keys or the spending limit, `make doctor ONLINE=1` checks everything including the
-keys, and `make help` lists every command. Every live run has hard caps on cost, web calls, model calls and time
-that the server enforces.
+Every live run has hard caps on cost, web calls, model calls and time, enforced by the server. Later,
+`make setup` changes keys or the spending limit, `make doctor ONLINE=1` checks everything including the keys, and
+`make help` lists every command.
 
 <details>
 <summary><b>Install with a coding agent</b></summary>
@@ -113,14 +117,13 @@ One capped run with live progress, every finding with its confidence, and a cite
 | **Follow** | Watch any entity. A check reports only what changed, with the before and after evidence side by side. |
 | **Go deeper** | Run focused research on one entity, or pick from the agent's list of open questions. |
 
-| Table | Review |
+| Graph | Evidence |
 | --- | --- |
-| ![Table](docs/screenshots/table.png) | ![Review](docs/screenshots/review.png) |
-| **Research in progress** | **Evidence** |
-| ![Research](docs/screenshots/mission-control.png) | ![Evidence](docs/screenshots/evidence-lens.png) |
+| ![Graph](docs/screenshots/canvas-live.png) | ![Evidence](docs/screenshots/evidence-lens.png) |
+| **Review** | **Table** |
+| ![Review](docs/screenshots/review.png) | ![Table](docs/screenshots/table.png) |
 
-Screenshots show the built-in synthetic demo data (fictional companies and people). A five-minute tour is in
-[docs/product-demo.md](docs/product-demo.md).
+Screenshots show the synthetic demo data. A five-minute tour is in [docs/product-demo.md](docs/product-demo.md).
 
 ## Why you can trust the graph
 
@@ -167,9 +170,8 @@ through a deterministic recorder that resolves identity, verifies that each quot
 and derives confidence from independent sources. If a worker dies, its lease expires, a reconciler re-dispatches
 the run, and LangGraph's checkpointer resumes the agent; idempotency keys make replays harmless.
 
-More detail: [docs/architecture.md](docs/architecture.md) · [docs/security.md](docs/security.md).
-
-## Models
+<details>
+<summary><b>Models for each role</b></summary>
 
 Research is not latency-sensitive, so each role gets a model chosen for accuracy and cost rather than speed.
 
@@ -184,28 +186,23 @@ Override any role with `MODEL_ROLE_PLANNER`, `MODEL_ROLE_RESEARCHER`, `MODEL_ROL
 `MODEL_ROLE_VERIFIER` (`provider:model`). Anthropic and OpenAI have their own defaults in
 `apps/api/openkg/agent/models.py`. To compare models on your own material, run `apps/api/scripts/model_bench.py`.
 
+</details>
+
+More detail: [docs/architecture.md](docs/architecture.md) · [docs/security.md](docs/security.md).
+
 ## Built on
 
-OpenKG stands on three projects that made it practical to build.
+- **[LangChain](https://www.langchain.com) Deep Agents and LangGraph.** The research loop is a
+  [Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) coordinator with subagents; its
+  middleware carries the steering, budget gates and metering.
+  [LangGraph](https://docs.langchain.com/oss/python/langgraph/add-memory) checkpoints let a run survive a dead
+  worker and pick up where it stopped.
+- **[Tavily](https://www.tavily.com) for web research.** Search, extract, map and crawl through one API built for
+  agents. Its ranked snippets are often enough to record a cited fact without fetching the page.
+- **[Valar](https://docs.valarhq.ai/) for inference.** One OpenAI-compatible endpoint for many open models with
+  published per-model prices, which is what makes per-role model choice and cost estimates possible.
 
-**[LangChain](https://www.langchain.com) — Deep Agents and LangGraph.** The research loop is a
-[Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) coordinator with subagents. Deep Agents
-gave us planning, context management and delegation out of the box, with a middleware system clean enough that
-adding steering, budget gates and metering took a few dozen lines. [LangGraph](https://docs.langchain.com/oss/python/langgraph/add-memory)
-checkpointing is what lets a run survive a dead worker and pick up where it stopped. If you want to build your own
-long-horizon agent, start with the [Deep Agents overview](https://docs.langchain.com/oss/python/deepagents/overview).
-
-**[Valar](https://docs.valarhq.ai/) — inference.** Valar's OpenAI-compatible API gave us one endpoint for two dozen
-open models with published per-model prices, which is what made per-role model selection and honest cost
-estimates possible. Its Responses API streamed tool calls reliably through hundreds of agent steps, and its clear
-[compatibility notes](https://docs.valarhq.ai/compatibility) told us exactly how to run an agent loop statelessly.
-Get a key from the
-[Valar quickstart](https://docs.valarhq.ai/quickstart).
-
-**[Tavily](https://www.tavily.com) — web research.** Search, extract, map and crawl through one API built for
-agents, with relevance-ranked snippets that are often enough to record a cited fact without fetching the page.
-
-Also: FastAPI, SQLAlchemy, Celery, Next.js, React Flow, TanStack Query, Radix UI and Tailwind CSS.
+Also FastAPI, SQLAlchemy, Celery, Next.js, React Flow, TanStack Query, Radix UI and Tailwind CSS.
 
 ## Contributing
 
