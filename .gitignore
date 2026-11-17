@@ -1,0 +1,27 @@
+.env
+.env.*
+!.env.example
+node_modules/
+.next/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+apps/api/.data/
+*.db
+*.db-wal
+*.db-shm
+*.db.checkpoints*
+apps/web/test-results/
+apps/web/playwright-report/
+.DS_Store
+openkg-claude-code-pack.zip
+openkg_claude_pack/
+CLAUDE.md
+BUILD_BRIEF.md
+apps/web/AGENTS.md
+# internal working notes: test history, live-run logs, spend, known gaps
+docs/live-verification.md
+docs/implementation-plan.md

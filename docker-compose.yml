@@ -1,0 +1,81 @@
+# OpenKG — full stack: web, API, Celery worker, beat scheduler, PostgreSQL, Redis.
+#   docker compose up --build        → http://localhost:3100  (demo mode, no API keys needed)
+# Copy .env.example to .env (or .env.local) to add keys for live research. Only web and API publish host ports.
+name: openkg
+
+x-backend: &backend
+  build: ./apps/api
+  env_file:
+    - path: .env
+      required: false
+  environment: &backend-env
+    DATABASE_URL: postgresql://openkg:${POSTGRES_PASSWORD:-openkg-local-only}@postgres:5432/openkg
+    REDIS_URL: redis://redis:6379/0
+    EXECUTION_MODE: celery
+    ENVIRONMENT: ${ENVIRONMENT:-development}
+    DEMO_MODE: ${DEMO_MODE:-true}
+  restart: unless-stopped
+
+services:
+  web:
+    build:
+      context: ./apps/web
+      args:
+        OPENKG_API_URL: http://api:8100
+    ports: ["${WEB_PORT:-3100}:3100"]
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+    ports: ["127.0.0.1:${API_PORT:-8100}:8100"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8100/readyz', timeout=3).status == 200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "openkg.worker.celery_app:celery", "worker", "--loglevel=INFO", "--concurrency=4", "-Q", "openkg"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  scheduler:
+    <<: *backend
+    # Beat drives the reconciler (re-dispatches runs whose message or worker was lost) and monitors.
+    command: ["celery", "-A", "openkg.worker.celery_app:celery", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      api: { condition: service_healthy }
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: openkg
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openkg-local-only}
+      POSTGRES_DB: openkg
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openkg -d openkg"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  pgdata:

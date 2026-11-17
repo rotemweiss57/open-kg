@@ -1,0 +1,175 @@
+@import "tailwindcss";
+
+/* ── OpenKG design tokens ───────────────────────────────────────────────────────────────
+   Midnight ink surfaces, warm-white type, one vivid accent (chartreuse).
+   Status colours carry meaning and are never used decoratively:
+   accepted = warm white/solid · provisional = dashed + muted · contested = amber. */
+:root {
+  color-scheme: dark;
+  --bg: #0a0c11;
+  --bg-2: #0e1118;
+  --panel: #12151d;
+  --panel-2: #181c27;
+  --panel-3: #1f2432;
+  --line: rgba(236, 233, 226, 0.085);
+  --line-2: rgba(236, 233, 226, 0.16);
+  --fg: #ece9e2;
+  --fg-2: #a9abb3;
+  --fg-3: #747886;
+  --accent: #c9f24d;
+  --accent-ink: #151b02;
+  --accent-text: #c9f24d;
+  --accent-soft: rgba(201, 242, 77, 0.12);
+  --ok: #79d7a3;
+  --warn: #f3b24e;
+  --warn-soft: rgba(243, 178, 78, 0.13);
+  --danger: #f2766d;
+  --danger-soft: rgba(242, 118, 109, 0.12);
+  --info: #7db8ff;
+  --grid: rgba(236, 233, 226, 0.055);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 50px -20px rgba(0, 0, 0, 0.7);
+  --c-sky: #74b9ff;
+  --c-amber: #f3b24e;
+  --c-violet: #b7a0ff;
+  --c-lime: #8fdc8a;
+  --c-rose: #ff8ea5;
+  --c-teal: #5fd6c6;
+  --c-slate: #9aa1b2;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f2ec;
+  --bg-2: #efece4;
+  --panel: #fdfcf8;
+  --panel-2: #f6f4ee;
+  --panel-3: #ebe8df;
+  --line: rgba(20, 24, 33, 0.1);
+  --line-2: rgba(20, 24, 33, 0.2);
+  --fg: #151821;
+  --fg-2: #4d5261;
+  --fg-3: #767b89;
+  --accent: #c2ec3f;
+  --accent-ink: #151b02;
+  --accent-text: #4c6800;
+  --accent-soft: rgba(126, 168, 0, 0.14);
+  --ok: #1d8a57;
+  --warn: #a8660a;
+  --warn-soft: rgba(196, 122, 14, 0.13);
+  --danger: #c2392f;
+  --danger-soft: rgba(194, 57, 47, 0.1);
+  --info: #1f6fd0;
+  --grid: rgba(20, 24, 33, 0.07);
+  --shadow: 0 1px 2px rgba(20, 24, 33, 0.05), 0 14px 40px -22px rgba(20, 24, 33, 0.28);
+  --c-sky: #1f74d4;
+  --c-amber: #b06c06;
+  --c-violet: #6b4fd8;
+  --c-lime: #2f8f3d;
+  --c-rose: #cc3d62;
+  --c-teal: #0f8577;
+  --c-slate: #5d6475;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-panel-3: var(--panel-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --font-sans: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-code), ui-monospace, monospace;
+  --font-display: var(--font-title), "Iowan Old Style", Georgia, serif;
+  --radius-xl: 14px;
+  --shadow-panel: var(--shadow);
+}
+
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  font-feature-settings: "cv11", "ss03", "calt";
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--accent); color: var(--accent-ink); }
+* { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 6px; }
+/* Text fields draw their own focus ring; a second outline on top reads as a glitch. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible, textarea:focus-visible { outline: none; }
+button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), [role="button"], summary { cursor: pointer; }
+
+.font-display {
+  font-family: var(--font-title), "Iowan Old Style", Georgia, serif;
+  font-weight: 420;
+  letter-spacing: -0.022em;
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 0;
+  font-feature-settings: "ss01";
+}
+.font-display em, em.font-display, .font-display.italic { font-weight: 400; letter-spacing: -0.015em; }
+/* Section and field labels: quiet sans small caps, never mono. */
+.label { font-size: 11px; font-weight: 500; letter-spacing: 0.045em; text-transform: uppercase; color: var(--fg-3); }
+.tnum { font-variant-numeric: tabular-nums; }
+.font-mono { font-feature-settings: "zero", "calt" 0; letter-spacing: -0.01em; }
+
+/* subtle topology grid used behind hero areas and the canvas */
+.grid-bg {
+  background-image: radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+.hairline { box-shadow: 0 0 0 1px var(--line); }
+
+/* ── motion ─────────────────────────────────────────────────────────────────────────── */
+@keyframes bloom { 0% { transform: scale(0.2); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes pulse-ring { 0% { transform: scale(1); opacity: 0.75; } 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes dash { to { stroke-dashoffset: -24; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.anim-bloom { animation: bloom 620ms cubic-bezier(0.2, 0.9, 0.25, 1.1) both; }
+.anim-fade-up { animation: fade-up 280ms ease-out both; }
+.anim-blink { animation: blink 1.6s ease-in-out infinite; }
+.pulse-ring { animation: pulse-ring 1.5s ease-out infinite; }
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--panel-2) 25%, var(--panel-3) 50%, var(--panel-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+/* ── React Flow overrides ───────────────────────────────────────────────────────────── */
+.react-flow { --xy-background-color: transparent; --xy-edge-stroke: var(--line-2); --xy-attribution-background-color: transparent; }
+.react-flow__attribution { opacity: 0.35; font-size: 9px; }
+.react-flow__attribution a { color: var(--fg-3); }
+.react-flow__node { cursor: pointer; }
+.react-flow__node:focus-visible { outline: none; }
+.react-flow__node:focus-visible .kg-node-core { outline: 2px solid var(--accent-text); outline-offset: 4px; }
+.react-flow__edge:focus-visible { outline: none; }
+.react-flow__pane { cursor: grab; }
+.react-flow__pane.dragging { cursor: grabbing; }
+.kg-edge-live { stroke-dasharray: 5 5; animation: dash 1.2s linear infinite; }
