@@ -57,7 +57,7 @@ make dev          # http://localhost:3100
 
 | Key | Get it | Variable |
 | --- | --- | --- |
-| **Tavily**, for web search and reading | [app.tavily.com](https://app.tavily.com) | `TAVILY_API_KEY` |
+| **Tavily**, for web search and reading | [app.tavily.com](https://app.tavily.com), or skip the key and click **Sign in with Tavily** in Settings | `TAVILY_API_KEY` |
 | **One model provider**: Valar, Anthropic or OpenAI | [Valar quickstart](https://docs.valarhq.ai/quickstart) · [Anthropic](https://console.anthropic.com/settings/keys) · [OpenAI](https://platform.openai.com/api-keys) | `VALAR_API_KEY`, `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` |
 
 Every live run has hard caps on cost, web calls, model calls and time, enforced by the server. Later,

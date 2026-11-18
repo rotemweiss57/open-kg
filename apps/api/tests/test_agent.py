@@ -316,7 +316,6 @@ def test_works_with_any_single_provider_and_valar_is_optional():
     none = ModelRouter(settings())
     with pytest.raises(NoProviderError):
         none.spec("planner")
-    assert settings().live_research_available is False and settings(openai_api_key="k").live_research_available is True
     # a broken/missing Valar key never blocks another provider, even when listed as a fallback
     r = ModelRouter(settings(anthropic_api_key="sk-a", model_fallbacks="valar,openai"))
     assert r.fallbacks("planner") == [] and r.model("planner").__class__.__name__ == "ChatAnthropic"

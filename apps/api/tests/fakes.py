@@ -64,6 +64,47 @@ def fake_tavily(calls: list[dict] | None = None, **kw) -> TavilyClient:
                         breaker=CircuitBreaker(), sleep=lambda _: None)
 
 
+def mcp_handler(calls: list[dict] | None = None, tool_error: dict | None = None, sse: bool = True):
+    """The Tavily MCP server: JSON-RPC tools/call answered with tavily_handler's canned results."""
+    rest = tavily_handler()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        rpc = json.loads(request.content)
+        if not request.headers.get("mcp-session-id"):  # mirrors the real server's middleware
+            return httpx.Response(400, json={"jsonrpc": "2.0", "id": "server-error", "error": {
+                "code": -32600, "message": "Missing mcp-session-id header. Please reconnect to start a new session."}})
+        name, args = rpc["params"]["name"], rpc["params"]["arguments"]
+        if calls is not None:
+            calls.append({"path": request.url.path, "tool": name, "args": args, "auth": request.headers.get("authorization")})
+        data = tool_error or rest(httpx.Request("POST", "https://api.tavily.com/" + name.removeprefix("tavily_"),
+                                                json=args)).json()
+        msg = {"jsonrpc": "2.0", "id": rpc["id"], "result": {
+            "content": [{"type": "text", "text": json.dumps(data)}], "structuredContent": data, "isError": False}}
+        if sse:
+            return httpx.Response(200, text=f"event: message\ndata: {json.dumps(msg)}\n\n",
+                                  headers={"content-type": "text/event-stream"})
+        return httpx.Response(200, json=msg)
+
+    return handler
+
+
+def connect_tavily_oauth(access: str = "at-1", refresh: str = "rt-1", expires_in: int = 3600) -> None:
+    """Stores a "Sign in with Tavily" connection as if the browser flow had completed."""
+    from datetime import timedelta
+
+    from openkg.db import session_scope, utcnow
+    from openkg.models import TavilyConnection
+    with session_scope() as s:
+        s.add(TavilyConnection(id="default", client_id="client-1", redirect_uri="http://localhost:3100/cb",
+                               access_token=access, refresh_token=refresh,
+                               expires_at=utcnow() + timedelta(seconds=expires_in)))
+
+
+def fake_tavily_mcp(calls: list[dict] | None = None, **kw) -> TavilyClient:
+    return TavilyClient(transport=httpx.MockTransport(mcp_handler(calls, **kw)), breaker=CircuitBreaker(),
+                        sleep=lambda _: None)
+
+
 class ScriptedChatModel(BaseChatModel):
     """Deterministic 'LLM': picks the next tool call from the conversation so far."""
 

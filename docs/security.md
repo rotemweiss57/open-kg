@@ -10,6 +10,10 @@
 - **Demo mode**: `POST /auth/demo` exists only when `DEMO_MODE=true`; the server refuses to start with
   `DEMO_MODE=true` and `ENVIRONMENT=production`. The demo account has no password.
 - **Secrets**: keys are read from the server environment as `SecretStr`. No endpoint returns them; tested.
+  "Sign in with Tavily" OAuth tokens are stored in the database (`tavily_connections`), like the key in `.env`,
+  and are never returned or logged; Disconnect deletes them and revokes the refresh token. Hosted (non-localhost)
+  instances must list their public origin in `CORS_ORIGINS` for Sign in with Tavily; only loopback and listed origins
+  may receive the authorization code. Only the user who connected it may replace or disconnect the sign-in.
 - **Agent containment**: no shell, SQL, file or arbitrary-HTTP tool. Web access goes through Tavily only. URLs are
   checked against an SSRF guard (public http/https hosts only). Map/crawl is limited to domains already in scope.
   Tool output is size-capped and wrapped in explicit untrusted-data delimiters.

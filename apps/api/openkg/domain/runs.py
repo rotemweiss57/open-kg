@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..config import get_settings
 from ..db import new_id, utcnow
 from ..models import FrontierQuestion, Graph, Run
+from ..tavily_oauth import live_research_available
 from .events import ACTIVE, audit, emit
 
 
@@ -33,8 +34,9 @@ def create_run(s: Session, graph: Graph, *, engine: str = "fixture", objective: 
     budget = {**default_budget(), **(budget or {})}
     config: dict = {}
     if engine == "deep_agent":
-        if not st.live_research_available:
-            raise RunError("Live research needs TAVILY_API_KEY and a model provider key on the server.", 422)
+        if not live_research_available(s):
+            raise RunError("Live research needs Tavily (Sign in with Tavily in Settings, or set TAVILY_API_KEY) "
+                           "and a model provider key on the server.", 422)
         if not confirm_spend:
             raise RunError("Live research spends real API credits. Confirm the budget to start.", 422)
         if budget["max_usd"] > st.max_run_budget_usd:

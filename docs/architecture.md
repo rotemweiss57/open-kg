@@ -10,7 +10,7 @@
 | 4 | Leases + step idempotency, not exactly-once delivery | Celery is at-least-once (`acks_late`). A worker must win `UPDATE … WHERE lease is free`; duplicates lose and exit. |
 | 5 | PostgreSQL adjacency tables + JSONB; no graph database, no pgvector | Neighbourhood queries on indexed `from_id`/`to_id` are enough at this scale. Identity resolution is deterministic. |
 | 6 | SQLite supported for local dev and the default test run | Zero-dependency start. SQLite runs every transaction as `BEGIN IMMEDIATE` so savepoints and rollbacks behave like Postgres. |
-| 7 | Raw `httpx` Tavily client rather than the SDK | Explicit timeouts, bounded retries, circuit breaker and an injectable transport for contract tests. |
+| 7 | Raw `httpx` Tavily client rather than the SDK | Explicit timeouts, bounded retries, circuit breaker and an injectable transport for contract tests. Without `TAVILY_API_KEY` the same client calls the Tavily MCP server with the server-wide "Sign in with Tavily" OAuth token (`openkg/tavily_oauth.py`, table `tavily_connections`). |
 | 8 | Native provider model unless fallbacks are configured | Keeps provider features such as Anthropic prompt caching. A `FallbackChatModel` wrapper is used only when `MODEL_FALLBACKS` is set. |
 | 9 | Valar uses the Responses API with `store=false` by default | Follows Valar's compatibility notes; `VALAR_API_MODE=chat` switches to Chat Completions. |
 | 10 | Force-directed layout that tethers existing nodes | New discoveries appear next to their neighbours without reshuffling the map. |

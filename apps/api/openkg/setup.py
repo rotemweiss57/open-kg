@@ -172,9 +172,11 @@ def setup(*, assume_yes: bool = False, provider: str | None = None, env_file: st
         f"Keys are written to {path} (readable only by you) and are never printed.\n")
 
     out("Step 1 of 4 · Web research (Tavily)")
+    if interactive:
+        out("  Or press Enter and sign in with Tavily from Settings in the web app.")
     has_tavily = obtain("TAVILY_API_KEY", "tavily", "Tavily", TAVILY_URL)
     if not has_tavily:
-        out("  – skipped: runs will be simulations on synthetic data until a key is added")
+        out("  – skipped: sign in with Tavily from Settings, or runs stay simulations until a key is added")
 
     out("\nStep 2 of 4 · Model provider")
     chosen = provider or environ.get("MODEL_PROVIDER", "") or current.get("MODEL_PROVIDER") or ""
@@ -260,6 +262,7 @@ def doctor(*, online: bool = False, out: Callable[[str], None] = print) -> int:
 
     from .agent.models import ModelRouter
     from .config import get_settings
+    from .tavily_oauth import status
 
     rows: list[tuple[str, str, str]] = []
     add = lambda state, name, detail: rows.append((state, name, detail))  # noqa: E731
@@ -284,10 +287,13 @@ def doctor(*, online: bool = False, out: Callable[[str], None] = print) -> int:
         files = [f.name for f in (root / ".env", root / ".env.local") if f.exists()]
         add(OK if files else WARN, "Config file", ", ".join(files) if files else "none yet; `make setup` creates one (demo mode works without it)")
 
+    tavily = "api_key" if st.tavily_api_key else None
     try:
         from .db import get_engine
         with get_engine().connect() as conn:
             tables = set(inspect(conn).get_table_names())
+        if "tavily_connections" in tables:
+            tavily = status()
         add(OK, "Database", f"{st.database_url.split(':', 1)[0]}, {len(tables)} tables" if "graphs" in tables
             else f"{st.database_url.split(':', 1)[0]}, empty (tables and demo data are created on first start)")
     except Exception as e:  # noqa: BLE001
@@ -303,11 +309,13 @@ def doctor(*, online: bool = False, out: Callable[[str], None] = print) -> int:
     else:
         add(OK, "Worker", f"{st.execution_mode} (runs execute inside the API process)")
 
-    if st.tavily_api_key:
+    if tavily == "api_key":
         state, msg = check_key("tavily", st.tavily_api_key.get_secret_value(), base_url=st.tavily_base_url) if online else (OK, "set")
-        add(state, "Tavily key", msg)
+        add(state, "Tavily", f"key {msg}" if state == OK else msg)
+    elif tavily == "oauth":
+        add(OK, "Tavily", "signed in with Tavily (OAuth)")
     else:
-        add(WARN, "Tavily key", f"missing; live research is off. Get one at {TAVILY_URL}")
+        add(WARN, "Tavily", "not connected; sign in from Settings in the web app, or set TAVILY_API_KEY")
     router = ModelRouter(st)
     primary = router.primary_provider()
     if primary:
@@ -334,7 +342,7 @@ def doctor(*, online: bool = False, out: Callable[[str], None] = print) -> int:
         out(f" {MARK[state]} {name:<{width}}  {detail}")
     out("─" * 60)
     failed = sum(1 for s, _, _ in rows if s == FAIL)
-    live = st.live_research_available
+    live = tavily is not None and bool(primary)
     out("Live research: " + ("available" if live else "unavailable (demo and simulated runs still work)"))
     if not online and live:
         out("Keys were not contacted. Run `openkg doctor --online` to verify them (free calls).")

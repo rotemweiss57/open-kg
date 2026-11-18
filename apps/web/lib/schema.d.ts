@@ -180,6 +180,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/system/tavily/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tavily Connect
+         * @description Starts "Sign in with Tavily". `origin` is the web app's own origin; Tavily redirects back to it.
+         */
+        post: operations["tavily_connect_api_v1_system_tavily_connect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/tavily/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tavily Callback
+         * @description Tavily redirects the browser here (a top-level GET, so the session cookie is sent).
+         */
+        get: operations["tavily_callback_api_v1_system_tavily_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/system/tavily": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Tavily Disconnect */
+        delete: operations["tavily_disconnect_api_v1_system_tavily_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/templates": {
         parameters: {
             query?: never;
@@ -208,6 +265,27 @@ export interface paths {
         put?: never;
         /** Propose Charter */
         post: operations["propose_charter_api_v1_charter_propose_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/favicon/{domain}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Favicon
+         * @description A source site's icon, fetched and cached server-side so the browser never asks a third party.
+         *     Only domains that already appear as sources in the caller's workspace are served.
+         */
+        get: operations["favicon_api_v1_favicon__domain__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -380,7 +458,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Export */
+        /**
+         * Export
+         * @description Accepted facts by default. `include_proposed` adds unreviewed suggestions, each marked as such.
+         */
         get: operations["export_api_v1_graphs__graph_id__export_get"];
         put?: never;
         post?: never;
@@ -1952,6 +2033,8 @@ export interface components {
             allow_registration: boolean;
             /** Tavily Configured */
             tavily_configured: boolean;
+            /** Tavily Auth */
+            tavily_auth?: ("api_key" | "oauth") | null;
             /** Live Research Available */
             live_research_available: boolean;
             /**
@@ -2083,6 +2166,16 @@ export interface components {
             links: {
                 [key: string]: string[];
             };
+        };
+        /** TavilyConnectIn */
+        TavilyConnectIn: {
+            /** Origin */
+            origin: string;
+        };
+        /** TavilyConnectOut */
+        TavilyConnectOut: {
+            /** Authorize Url */
+            authorize_url: string;
         };
         /** Timeline */
         Timeline: {
@@ -2452,6 +2545,110 @@ export interface operations {
             };
         };
     };
+    tavily_connect_api_v1_system_tavily_connect_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                openkg_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TavilyConnectIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TavilyConnectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tavily_callback_api_v1_system_tavily_callback_get: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                error_description?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                openkg_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tavily_disconnect_api_v1_system_tavily_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                openkg_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     templates_api_v1_templates_get: {
         parameters: {
             query?: never;
@@ -2513,6 +2710,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CharterProposal"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    favicon_api_v1_favicon__domain__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-CSRF-Token"?: string | null;
+            };
+            path: {
+                domain: string;
+            };
+            cookie?: {
+                openkg_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -2964,7 +3196,8 @@ export interface operations {
     export_api_v1_graphs__graph_id__export_get: {
         parameters: {
             query?: {
-                format?: "json" | "csv" | "graphml";
+                format?: "json" | "csv" | "graphml" | "markdown";
+                include_proposed?: boolean;
             };
             header?: {
                 "X-CSRF-Token"?: string | null;
