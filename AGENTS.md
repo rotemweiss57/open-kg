@@ -55,6 +55,11 @@ Live research needs **two** keys. Skip this step entirely if the user only wants
 
 Tell the user which keys are needed and where to get them, then use **one** of these:
 
+**Easiest for Tavily: Sign in with Tavily.** No Tavily key is needed. After step 5, the user opens
+<http://localhost:3100/settings> and clicks **Sign in with Tavily**. A `TAVILY_API_KEY`, if set, always takes
+precedence. The model provider key still comes from option A or B. Hosted (non-localhost) instances must list their
+public origin in `CORS_ORIGINS` for Sign in with Tavily.
+
 **Option A (preferred): the user types the keys themselves.** Ask them to run this in their own terminal. Input
 is hidden and each key is checked with a free call before it is saved:
 
@@ -86,8 +91,8 @@ Expected: every line starts with `✓`, then `Live research: available` and `No 
 
 | You see | Do this |
 | --- | --- |
-| `✗ Tavily key  the provider rejected this key` | The key is wrong or revoked. Ask the user for a new one; re-run step 3. |
-| `! Tavily key  missing` or `! Model provider  none configured` | Fine for demo mode. For live research, do step 3. |
+| `✗ Tavily  the provider rejected this key` | The key is wrong or revoked. Ask the user for a new one; re-run step 3. |
+| `! Tavily  not connected` or `! Model provider  none configured` | Fine for demo mode. For live research, do step 3 (or Sign in with Tavily in Settings). |
 | `! … could not reach the provider` | No network access from this machine. Keys are saved but unverified. |
 | `✗ Database  cannot connect` | `DATABASE_URL` points somewhere unreachable. Remove it from `.env` to use the built-in SQLite file. |
 | `! Web dependencies  missing` | `cd apps/web && npm install` |

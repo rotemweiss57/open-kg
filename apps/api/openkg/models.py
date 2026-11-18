@@ -428,3 +428,27 @@ class AuditEvent(Base):
     target: Mapped[str] = mapped_column(String(120), default="")
     detail: Mapped[dict] = mapped_column(Json, default=dict)
     created_at: Mapped[datetime] = ts()
+
+
+# --- integrations ----------------------------------------------------------------------------
+
+
+class TavilyConnection(Base):
+    """The server-wide "Sign in with Tavily" (MCP OAuth). A single row, id="default"."""
+
+    __tablename__ = "tavily_connections"
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default="default")
+    client_id: Mapped[str] = mapped_column(String(200), default="")
+    redirect_uri: Mapped[str] = mapped_column(String(500), default="")
+    access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = ts(nullable=True)
+    # An in-progress sign-in; promoted to the fields above only once its token exchange succeeds.
+    pending_client_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    pending_redirect_uri: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    pending_user_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    pending_state: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pending_verifier: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    connected_by_user_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    connected_at: Mapped[datetime | None] = ts(nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utcnow, onupdate=utcnow)

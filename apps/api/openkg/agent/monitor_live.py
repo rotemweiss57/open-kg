@@ -9,6 +9,7 @@ from ..domain.canonical import canonical_url, is_public_http_url, norm_text, sha
 from ..domain.monitors import Observation
 from ..domain.recorder import CandidateClaim
 from ..models import ProviderUsage
+from ..tavily_oauth import live_research_available
 from .models import ModelRouter, structured
 from .tavily import TavilyClient
 from .tools import UNTRUSTED_CLOSE, UNTRUSTED_OPEN
@@ -23,9 +24,9 @@ class LiveObserver:
         self.tavily, self.router = tavily, router
 
     def observe(self, graph, monitor, entity, known_hashes) -> Observation:
-        st = get_settings()
-        if not st.live_research_available and not (self.tavily and self.router):
-            raise RuntimeError("Live monitoring needs TAVILY_API_KEY and a model provider key")
+        if not (self.tavily and self.router) and not live_research_available():
+            raise RuntimeError("Live monitoring needs Tavily (Sign in with Tavily in Settings, or set TAVILY_API_KEY) "
+                               "and a model provider key")
         tavily = self.tavily or TavilyClient()
         # The first check looks back a month to establish what is currently reported; later checks only
         # need what appeared since the last one.

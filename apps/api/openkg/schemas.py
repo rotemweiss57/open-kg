@@ -49,6 +49,7 @@ class SystemStatus(Out):
     execution_mode: str
     allow_registration: bool
     tavily_configured: bool
+    tavily_auth: Literal["api_key", "oauth"] | None = None
     live_research_available: bool
     live_unavailable_reason: str = ""
     primary_provider: str | None = None
@@ -59,6 +60,14 @@ class SystemStatus(Out):
     scenarios: list[dict[str, str]] = []
     database: str = ""
     worker: dict[str, Any] = {}
+
+
+class TavilyConnectIn(BaseModel):
+    origin: str = Field(pattern=r"^https?://[^/\s?#]+$", max_length=200)
+
+
+class TavilyConnectOut(Out):
+    authorize_url: str
 
 
 class ProviderTestOut(Out):

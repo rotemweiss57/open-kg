@@ -4,14 +4,17 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 from typing import Literal
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+import httpx
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from .. import schemas as S
+from .. import tavily_oauth
 from ..agent import charter as charter_mod
 from ..agent.models import ROLES, ModelRouter
 from ..config import get_settings
@@ -45,6 +48,8 @@ from ..security import (
     lookup_session,
     verify_password,
 )
+from ..tavily_oauth import OAuthError
+from ..worker.context import TransientError
 from .deps import Auth, entity_in, get_auth, get_db, get_graph, get_monitor, get_run, relationship_in
 
 router = APIRouter(prefix="/api/v1")
@@ -141,18 +146,19 @@ def public_status() -> dict:
 
 
 @router.get("/system/status", response_model=S.SystemStatus, tags=["system"])
-def system_status(request: Request, auth: Auth = Depends(get_auth)):
+def system_status(request: Request, auth: Auth = Depends(get_auth), s: Session = Depends(get_db)):
     st = get_settings()
     mr = ModelRouter()
+    tavily = tavily_oauth.status(s)
     reason = ""
-    if not st.tavily_api_key:
-        reason = "TAVILY_API_KEY is not set on the server."
+    if not tavily:
+        reason = "Tavily is not connected: sign in with Tavily in Settings, or set TAVILY_API_KEY on the server."
     elif mr.primary_provider() is None:
         reason = "No model provider key is set (OPENAI_API_KEY, ANTHROPIC_API_KEY or VALAR_API_KEY)."
     worker = getattr(request.app.state, "worker", None)
     return S.SystemStatus(
         demo_mode=st.demo_mode, environment=st.environment, execution_mode=st.execution_mode,
-        allow_registration=st.allow_registration, tavily_configured=bool(st.tavily_api_key),
+        allow_registration=st.allow_registration, tavily_configured=tavily is not None, tavily_auth=tavily,
         live_research_available=not reason, live_unavailable_reason=reason, primary_provider=mr.primary_provider(),
         fallbacks=[str(f) for f in (mr.fallbacks("researcher") if mr.primary_provider() else [])],
         providers=[S.ProviderStatus(**p) for p in mr.status()],
@@ -167,12 +173,14 @@ def system_status(request: Request, auth: Auth = Depends(get_auth)):
 
 
 @router.post("/system/providers/{provider}/test", response_model=S.ProviderTestOut, tags=["system"])
-def test_provider(provider: Literal["openai", "anthropic", "valar", "tavily"], auth: Auth = Depends(get_auth)):
+def test_provider(provider: Literal["openai", "anthropic", "valar", "tavily"], auth: Auth = Depends(get_auth),
+                  s: Session = Depends(get_db)):
     """Sends one tiny real request. Costs a negligible amount; only runs on explicit user action."""
     st = get_settings()
     if provider == "tavily":
-        if not st.tavily_api_key:
-            return S.ProviderTestOut(ok=False, message="TAVILY_API_KEY is not set.")
+        if not tavily_oauth.status(s):
+            return S.ProviderTestOut(ok=False, message="Tavily is not connected.")
+        s.commit()  # no transaction across the network call
         from ..agent.tavily import TavilyClient
         try:
             res = TavilyClient(max_retries=0).search("OpenKG connection test", max_results=1)
@@ -183,6 +191,55 @@ def test_provider(provider: Literal["openai", "anthropic", "valar", "tavily"], a
         return S.ProviderTestOut(ok=False, message=f"{provider.upper()}_API_KEY is not set.")
     ok, msg = ModelRouter().test(provider)
     return S.ProviderTestOut(ok=ok, message=msg)
+
+
+def _require_tavily_owner(s: Session, auth: Auth) -> None:
+    connected_by = tavily_oauth.owner(s)
+    if connected_by and connected_by != auth.user.id:
+        raise HTTPException(403, "Only the user who signed in with Tavily can replace or disconnect it.")
+
+
+@router.post("/system/tavily/connect", response_model=S.TavilyConnectOut, tags=["system"])
+def tavily_connect(body: S.TavilyConnectIn, auth: Auth = Depends(get_auth), s: Session = Depends(get_db)):
+    """Starts "Sign in with Tavily". `origin` is the web app's own origin; Tavily redirects back to it."""
+    if not tavily_oauth.allowed_origin(body.origin):
+        raise HTTPException(400, f"{body.origin} is not a known origin of this server. "
+                                 "Add it to CORS_ORIGINS on the server to use Sign in with Tavily from there.")
+    _require_tavily_owner(s, auth)
+    s.commit()
+    try:
+        return S.TavilyConnectOut(authorize_url=tavily_oauth.begin(body.origin, auth.user.id))
+    except (OAuthError, TransientError, httpx.HTTPError) as e:
+        raise HTTPException(502, str(e)) from e
+
+
+@router.get("/system/tavily/callback", tags=["system"])
+def tavily_callback(request: Request, code: str = "", state: str = "", error: str = "", error_description: str = "",
+                    s: Session = Depends(get_db), token: str | None = Cookie(default=None, alias=COOKIE)):
+    """Tavily redirects the browser here (a top-level GET, so the session cookie is sent)."""
+    try:
+        auth = get_auth(request, s, token, None)
+    except HTTPException:
+        auth = None
+    s.commit()
+    try:
+        if auth is None:
+            raise OAuthError("Please sign in to OpenKG first, then start Sign in with Tavily again.")
+        if error:
+            raise OAuthError(error_description or error)
+        tavily_oauth.complete(code, state, auth.user.id)
+    except (OAuthError, TransientError, httpx.HTTPError) as e:
+        return RedirectResponse("/settings?" + urlencode({"tavily": "error", "reason": str(e)[:200]}), 303)
+    audit(s, graph_id=None, action="tavily.connected", actor_user_id=auth.user.id, workspace_id=auth.workspace_id)
+    return RedirectResponse("/settings?tavily=connected", 303)
+
+
+@router.delete("/system/tavily", status_code=204, tags=["system"])
+def tavily_disconnect(auth: Auth = Depends(get_auth), s: Session = Depends(get_db)):
+    _require_tavily_owner(s, auth)
+    s.commit()
+    tavily_oauth.disconnect()
+    audit(s, graph_id=None, action="tavily.disconnected", actor_user_id=auth.user.id, workspace_id=auth.workspace_id)
 
 
 @router.get("/templates", tags=["graphs"])
@@ -654,8 +711,9 @@ def check_monitor(m: Monitor = Depends(get_monitor), auth: Auth = Depends(get_au
     """Manual refresh. Synthetic graphs replay their scripted world; live graphs make one small
     paid search (and a model call only if new evidence appears)."""
     g = s.get(Graph, m.graph_id)
-    if not g.is_synthetic and not get_settings().live_research_available:
-        raise HTTPException(422, "Live monitoring needs TAVILY_API_KEY and a model provider key on the server.")
+    if not g.is_synthetic and not tavily_oauth.live_research_available(s):
+        raise HTTPException(422, "Live monitoring needs Tavily (Sign in with Tavily in Settings, or set TAVILY_API_KEY) "
+                                 "and a model provider key on the server.")
     s.commit()
     run_id = run_monitor_check(m.id)
     if run_id is None:

@@ -37,6 +37,8 @@ class Settings(BaseSettings):
 
     tavily_api_key: SecretStr | None = None
     tavily_base_url: str = "https://api.tavily.com"
+    # "Sign in with Tavily" (OAuth) tokens only work here; used when TAVILY_API_KEY is not set.
+    tavily_mcp_url: str = "https://mcp.tavily.com/mcp"
     model_provider: Literal["openai", "anthropic", "valar", ""] = ""
     model_name: str = ""
     model_fallbacks: str = ""  # comma separated provider[:model] list, explicit opt-in
@@ -85,10 +87,6 @@ class Settings(BaseSettings):
 
     def configured_providers(self) -> list[str]:
         return [p for p in ("anthropic", "openai", "valar") if self.provider_key(p)]
-
-    @property
-    def live_research_available(self) -> bool:
-        return bool(self.tavily_api_key) and bool(self.configured_providers())
 
 
 @lru_cache

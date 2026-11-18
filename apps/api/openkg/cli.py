@@ -65,12 +65,15 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "check":
         from .agent.models import ModelRouter
         from .config import get_settings
+        from .seed import init_db
+        from .tavily_oauth import live_research_available, status
         st = get_settings()
+        init_db()
         print(f"environment={st.environment} demo_mode={st.demo_mode} execution_mode={st.execution_mode}")
-        print(f"database={st.database_url.split(':', 1)[0]} tavily={'set' if st.tavily_api_key else 'missing'}")
+        print(f"database={st.database_url.split(':', 1)[0]} tavily={status() or 'missing'}")
         for row in ModelRouter(st).status():
             print(f"  {row['provider']:<10} {'configured' if row['configured'] else 'not configured':<15} {row['model'] or ''} {row['note']}")
-        print("live research:", "available" if st.live_research_available else "unavailable (simulation only)")
+        print("live research:", "available" if live_research_available() else "unavailable (simulation only)")
     elif args.cmd == "setup":
         from .setup import setup as run_setup
         return run_setup(assume_yes=args.yes, provider=args.provider, env_file=args.env_file, skip_checks=args.skip_checks)
@@ -89,22 +92,22 @@ def live_smoke(args) -> int:
     from sqlalchemy import func, select
 
     from .agent.charter import heuristic
-    from .config import get_settings
     from .db import session_scope
     from .domain.runs import create_run
     from .models import Graph, Run, Suggestion
     from .security import create_user
     from .seed import init_db
+    from .tavily_oauth import live_research_available
     from .worker.executor import execute_run
 
-    st = get_settings()
     if not args.confirm_spend:
         print("Refusing to run: this makes real Tavily and model calls. Re-run with --confirm-spend.")
         return 2
-    if not st.live_research_available:
-        print("Live research unavailable: set TAVILY_API_KEY and one model provider key (see `openkg check`).")
-        return 2
     init_db()
+    if not live_research_available():
+        print("Live research unavailable: connect Tavily (Sign in with Tavily in Settings, or set TAVILY_API_KEY) "
+              "and one model provider key (see `openkg check`).")
+        return 2
     proposal = heuristic(args.question)
     smoke = args.cmd == "live-smoke"
     minutes = getattr(args, "minutes", 10)

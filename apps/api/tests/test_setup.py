@@ -93,5 +93,5 @@ def test_doctor_reports_without_secrets(monkeypatch):
     out = []
     code = setup_mod.doctor(out=out.append)
     text = "\n".join(out)
-    assert code == 0 and "Tavily key" in text and "tvly-super-secret" not in text
+    assert code == 0 and "Tavily" in text and "key set" in text and "tvly-super-secret" not in text
     assert "Database" in text and "No blocking problems." in text
